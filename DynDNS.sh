@@ -1,7 +1,7 @@
 #/bin/sh
 
 # AWS Route53 DNS Updater
-# Usage: Replace the credentials below and then execute ./DynDns.sh HostedZoneID FQDN
+# Usage: Replace the credentials and then execute ./DynDns.sh HostedZoneID FQDN
 # Aws Route53 Key Credentials
 AWSKeyID=""
 AWSAccessKey=""
