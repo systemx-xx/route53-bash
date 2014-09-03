@@ -74,5 +74,5 @@ EOF
 			echo "/!\ Update has Failed on $2"
 	fi
 	else
-		echo "No Update Required"
+		echo "No Update Required for $2"
 fi
