@@ -13,12 +13,14 @@ TTL=300
 if [ "$1" == '' ]
 	then
 	echo "You must provide a HostedZoneID"
+	echo "./DynDns.sh HostedZoneID FQDN"
 	exit 0
 fi
 
 if [ "$2" == '' ]
 	then
 	echo "You must provide a FQDN to update"
+	echo "./DynDns.sh HostedZoneID FQDN"
 	exit 0
 fi
 
