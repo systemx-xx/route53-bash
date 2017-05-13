@@ -1,28 +1,37 @@
-#/bin/sh
-
+#!/bin/bash
 # AWS Route53 DNS Updater
-# Usage: Replace the credentials and then execute ./DynDns.sh HostedZoneID FQDN
-# Aws Route53 Key Credentials
-AWSKeyID=""
-AWSAccessKey=""
 
-####################################
+if [ -z "$AWS_ACCESS_KEY_ID" ];
+then
+  echo "You must set AWS_ACCESS_KEY_ID prior to running this script"
+  exit 0
+fi
+AWSKeyID="$AWS_ACCESS_KEY_ID"
+
+if [ -z "$AWS_SECRET_ACCESS_KEY" ];
+then
+  echo "You must set AWS_SECRET_ACCESS_KEY prior to running this script"
+  exit 0
+fi
+AWSAccessKey="$AWS_SECRET_ACCESS_KEY"
+
+if [ -z $1 ];
+then
+  echo "You must provide a HostedZoneID"
+  echo "./DynDns.sh HostedZoneID Fqdn"
+  exit 0
+fi
+HostedZoneId=$1
+
+if [ -z $2 ];
+then
+  echo "You must provide a Fqdn to update"
+  echo "./DynDns.sh HostedZoneID Fqdn"
+  exit 0
+fi
+Fqdn=$2
 
 TTL=300
-
-if [ "$1" == '' ]
-	then
-	echo "You must provide a HostedZoneID"
-	echo "./DynDns.sh HostedZoneID FQDN"
-	exit 0
-fi
-
-if [ "$2" == '' ]
-	then
-	echo "You must provide a FQDN to update"
-	echo "./DynDns.sh HostedZoneID FQDN"
-	exit 0
-fi
 
 WanIP=`curl -s icanhazip.com`
 
@@ -31,16 +40,17 @@ Signature=`echo -en "$DateVar" | openssl dgst -sha256 -hmac "$AWSAccessKey" -bin
 Header="Date: $DateVar\nX-Amzn-Authorization: AWS3-HTTPS AWSAccessKeyId=$AWSKeyID,Algorithm=HmacSHA256,Signature=$Signature"
 Header=`echo -en $Header`
 
-CurrentIP=`curl -k -H "$Header" -d "name=$2" -G "https://route53.amazonaws.com/2013-04-01/hostedzone/$1/rrset?maxitems=1" 2>/dev/null | awk -v FS="(<Value>|<\/Value>)" '{print $2}' 2>/dev/null | sed '/^$/d'`
+CurrentIP=`curl -k -H "$Header" -d "name=$Fqdn" -G "https://route53.amazonaws.com/2013-04-01/hostedzone/$HostedZoneId/rrset?maxitems=1" 2>/dev/null | awk -v FS="(<Value>|<\/Value>)" '{print $2}' 2>/dev/null | sed '/^$/d'`
 
-if [ "$3" == 'force' ]
-	then
-	CurrentIP=0
+if [ "$3" == "force" ];
+then
+  CurrentIP=0
 fi
 
-if [ "$WanIP" != "$CurrentIP" ]
-	then
-Data=$(cat <<EOF
+if [ "$WanIP" != "$CurrentIP" ];
+then
+
+  Data=$(cat <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <ChangeResourceRecordSetsRequest xmlns="https://route53.amazonaws.com/doc/2013-04-01/">
 <ChangeBatch>
@@ -49,7 +59,7 @@ Data=$(cat <<EOF
       <Change>
          <Action>UPSERT</Action>
          <ResourceRecordSet>
-            <Name>$2.</Name>
+            <Name>$Fqdn.</Name>
             <Type>A</Type>
             <TTL>$TTL</TTL>
             <ResourceRecords>
@@ -64,15 +74,16 @@ Data=$(cat <<EOF
 </ChangeResourceRecordSetsRequest>
 EOF
 )
-	Header="Content-Type: 'text/xml'\nDate: $DateVar\nX-Amzn-Authorization: AWS3-HTTPS AWSAccessKeyId=$AWSKeyID,Algorithm=HmacSHA256,Signature=$Signature"
-	Header=`echo -en $Header`
-	Result=`curl -k -H "$Header" -d "$Data" https://route53.amazonaws.com/2013-04-01/hostedzone/$1/rrset 2>/dev/null | awk -v FS="(<Status>|<\/Status>)" '{print $2}' 2>/dev/null | sed '/^$/d'`
-	if [ "$Result" == 'PENDING' ]
-		then
-			echo "$2 has been qued to update"
-		else
-			echo "/!\ Update has Failed on $2"
-	fi
-	else
-		echo "No Update Required for $2"
+  Header="Content-Type: 'text/xml'\nDate: $DateVar\nX-Amzn-Authorization: AWS3-HTTPS AWSAccessKeyId=$AWSKeyID,Algorithm=HmacSHA256,Signature=$Signature"
+  Header=`echo -en $Header`
+  Result=`curl -k -H "$Header" -d "$Data" https://route53.amazonaws.com/2013-04-01/hostedzone/$HostedZoneId/rrset 2>/dev/null | awk -v FS="(<Status>|<\/Status>)" '{print $2}' 2>/dev/null | sed '/^$/d'`
+
+  if [ "$Result" == "PENDING" ];
+  then
+    echo "$Fqdn has been queued for update"
+  else
+    echo "/!\ Update has Failed on $Fqdn"
+  fi
+else
+  echo "No Update Required for $Fqdn"
 fi
